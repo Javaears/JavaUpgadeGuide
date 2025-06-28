@@ -1,0 +1,222 @@
+Java 8 到最新版本升级指南
+===============================
+
+## Java 24 和 Java 8 的主要区别
+
+### 语言特性差异
+
+Java 8 的关键特性：
+- Lambda 表达式和函数式接口
+- Stream API
+- Optional 类
+- 新的日期时间 API (java.time)
+- 默认方法和静态方法接口
+
+Java 24 新增的重要特性：
+- Record 类（Java 14引入，持续改进）
+- Pattern Matching（模式匹配，逐步增强）
+- Switch 表达式（Java 14正式版本）
+- Text Blocks（多行字符串，Java 15）
+- Sealed Classes（密封类，Java 17）
+- Virtual Threads（虚拟线程，Java 21的重大特性）
+
+### 性能提升
+
+Java 24 在性能方面有显著改进：
+- 更先进的垃圾收集器（如 ZGC、Shenandoah 的持续优化）
+- JIT 编译器优化
+- 启动时间和内存使用优化
+- Virtual Threads 带来的并发性能提升
+
+### API 和库的演进
+
+- HTTP Client：Java 11 引入的新 HTTP 客户端 API
+- 模块系统：Java 9 的 Project Jigsaw
+- 新的集合工厂方法：List.of(), Set.of() 等
+- String 类增强：新的方法如 isBlank(), lines(), strip() 等
+
+### 开发体验改进
+
+- var 关键字：局部变量类型推断（Java 10）
+- 更好的错误消息和调试信息
+- Preview 和 Incubator 特性：允许提前体验新功能
+
+### 长期支持版本
+
+- Java 8 是 LTS（长期支持）版本
+- Java 21 是最新的 LTS 版本
+- Java 24 不是 LTS 版本
+
+## 快速升级策略
+
+### 1. 渐进式升级路径
+Java 8 → Java 11 (LTS) → Java 17 (LTS) → Java 21 (LTS) → Java 24
+
+建议先升级到 LTS 版本，确保稳定性后再考虑最新版本。
+
+### 2. 兼容性检查工具
+
+使用 jdeps 分析依赖：
+```
+# 检查代码对内部 API 的依赖
+jdeps --jdk-internals your-application.jar
+
+# 检查模块依赖
+jdeps --module-path module-path --add-modules ALL-SYSTEM your-app.jar
+```
+
+使用 OpenRewrite 自动化重构：
+Maven 插件配置：
+```
+<plugin>
+    <groupId>org.openrewrite.maven</groupId>
+    <artifactId>rewrite-maven-plugin</artifactId>
+    <version>5.9.0</version>
+    <configuration>
+        <activeRecipes>
+            <recipe>org.openrewrite.java.migrate.JavaVersion8to11</recipe>
+        </activeRecipes>
+    </configuration>
+</plugin>
+```
+
+## 主要兼容性问题及解决方案
+
+### 1. 模块系统 (Java 9+)
+创建 module-info.java：
+```
+module your.module.name {
+    requires java.base;
+    requires java.logging;
+    exports your.package.name;
+}
+```
+
+### 2. 移除的 API 处理
+Java 8: 使用 sun.misc.BASE64Encoder (已移除)
+Java 11+: 使用标准 Base64
+```
+import java.util.Base64;
+Base64.Encoder encoder = Base64.getEncoder();
+```
+
+### 3. 第三方库升级
+更新主要依赖库版本：
+```
+<!-- Spring Framework -->
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-core</artifactId>
+    <version>6.1.0</version> <!-- 支持 Java 17+ -->
+</dependency>
+
+<!-- Apache Commons -->
+<dependency>
+    <groupId>org.apache.commons</groupId>
+    <artifactId>commons-lang3</artifactId>
+    <version>3.13.0</version>
+</dependency>
+```
+
+## 实用的升级工具
+
+### 1. Eclipse Migration Toolkit
+安装 EMT 插件分析迁移问题，提供详细的迁移报告和建议
+
+### 2. Maven/Gradle 配置更新
+
+Maven 配置：
+```
+<properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <maven.compiler.release>21</maven.compiler.release>
+</properties>
+
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-compiler-plugin</artifactId>
+    <version>3.11.0</version>
+    <configuration>
+        <release>21</release>
+        <compilerArgs>
+            <arg>--enable-preview</arg> <!-- 如需使用预览特性 -->
+        </compilerArgs>
+    </configuration>
+</plugin>
+```
+
+Gradle 配置：
+```
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+compileJava {
+    options.compilerArgs += ['--enable-preview']
+}
+```
+
+### 3. 自动化测试策略
+使用 JUnit 5 进行兼容性测试：
+```
+@Test
+@EnabledOnJre(JRE.JAVA_21)
+void testOnJava21() {
+    // 测试 Java 21 特定功能
+}
+
+@Test
+@DisabledOnJre(JRE.JAVA_8)
+void testNotOnJava8() {
+    // 测试不兼容 Java 8 的功能
+}
+```
+
+## 分阶段实施计划
+
+### 阶段 1：准备工作
+1. 备份现有代码
+2. 运行兼容性分析工具
+3. 识别和记录所有依赖
+
+### 阶段 2：本地环境升级
+1. 安装目标 Java 版本
+2. 更新 IDE 和构建工具
+3. 修复编译错误
+
+### 阶段 3：依赖库升级
+1. 更新所有第三方库
+2. 处理 API 变更
+3. 运行完整测试套件
+
+### 阶段 4：生产环境部署
+1. 在测试环境验证
+2. 性能基准测试
+3. 分批次生产部署
+
+## 常见陷阱及避免方法
+
+### 内存管理变化：
+Java 8:
+-XX:PermSize=256m -XX:MaxPermSize=512m
+
+Java 11+ (Metaspace):
+-XX:MetaspaceSize=256m -XX:MaxMetaspaceSize=512m
+
+### 垃圾收集器选择：
+推荐使用 G1GC (Java 11+) 或 ZGC (Java 15+)
+-XX:+UseG1GC
+或
+-XX:+UseZGC
+
+## 总结
+
+通过这种系统性的方法，可以相对平滑地完成 Java 版本升级，同时最大程度地减少兼容性问题。建议在每个阶段都进行充分测试，确保应用稳定性。
+
+如果你正在考虑从 Java 8 升级，建议先升级到 Java 21（LTS），然后再考虑更新的版本。升级时需要注意兼容性问题，特别是如果使用了已被移除的 API 或依赖库。
+
+===============================
+文档创建时间：2025年6月28日
